@@ -4,9 +4,13 @@ import {
   STATUSES,
   createApplication,
   deleteApplication,
+  dispatchReminders,
   fetchApplications,
   fetchFollowUps,
   fetchStats,
+  getToken,
+  login,
+  logout,
   updateApplication,
 } from './api'
 import type {
@@ -66,6 +70,9 @@ export default function App() {
   const [apps, setApps] = useState<Application[]>([])
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [followUps, setFollowUps] = useState<Application[]>([])
+  const [authed, setAuthed] = useState(Boolean(getToken()))
+  const [showLogin, setShowLogin] = useState(false)
+  const [password, setPassword] = useState('')
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [form, setForm] = useState<ApplicationInput>(emptyForm)
@@ -152,7 +159,9 @@ export default function App() {
       setEditingId(null)
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save')
+      const msg = err instanceof Error ? err.message : 'Failed to save'
+      setError(msg)
+      if (msg.toLowerCase().includes('login') || msg.includes('401')) setShowLogin(true)
     }
   }
 
@@ -165,6 +174,37 @@ export default function App() {
   async function onStatusChange(id: number, status: ApplicationStatus) {
     await updateApplication(id, { status })
     await load()
+  }
+
+  async function onLogin(e: FormEvent) {
+    e.preventDefault()
+    setError('')
+    try {
+      await login(password)
+      setAuthed(true)
+      setShowLogin(false)
+      setPassword('')
+    } catch {
+      setError('Invalid password')
+    }
+  }
+
+  function onLogout() {
+    logout()
+    setAuthed(false)
+  }
+
+  async function onDispatchReminders() {
+    try {
+      const result = await dispatchReminders()
+      alert(
+        `Reminder digest: ${result.count} item(s)` +
+          (result.delivered ? ' · webhook delivered' : ' · set REMINDER_WEBHOOK_URL to email/Slack'),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reminder dispatch failed')
+      setShowLogin(true)
+    }
   }
 
   return (
@@ -196,6 +236,23 @@ export default function App() {
           >
             + Add
           </button>
+          {authed ? (
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded-lg bg-white/80 px-3 py-2 text-sm text-[var(--muted)] ring-1 ring-[var(--line)]"
+            >
+              Logout
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowLogin(true)}
+              className="rounded-lg bg-white/80 px-3 py-2 text-sm text-[var(--muted)] ring-1 ring-[var(--line)]"
+            >
+              Login
+            </button>
+          )}
         </div>
       </header>
 
@@ -246,6 +303,13 @@ export default function App() {
               <p className="mb-4 text-sm text-[var(--muted)]">
                 Due soon: {stats.follow_ups_due} · Overdue: {stats.follow_ups_overdue}
               </p>
+              <button
+                type="button"
+                onClick={onDispatchReminders}
+                className="mb-3 rounded-lg bg-[var(--accent-soft)] px-3 py-1.5 text-xs font-medium text-[var(--accent)]"
+              >
+                Dispatch reminder digest
+              </button>
               <ul className="divide-y divide-[var(--line)]">
                 {followUps.map((app) => {
                   const overdue = app.follow_up_date && app.follow_up_date < new Date().toISOString().slice(0, 10)
@@ -400,6 +464,32 @@ export default function App() {
             <p className="px-4 py-8 text-center text-sm text-[var(--muted)]">No applications yet — click Add to start</p>
           )}
         </section>
+      )}
+
+      {showLogin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <form onSubmit={onLogin} className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-2 text-xl font-semibold">Demo login</h2>
+            <p className="mb-4 text-sm text-[var(--muted)]">
+              Password protects create/edit/delete. Default: <code>demo</code>
+            </p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mb-4 w-full rounded-lg border border-[var(--line)] px-3 py-2"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowLogin(false)} className="rounded-lg px-4 py-2 text-sm ring-1 ring-[var(--line)]">
+                Cancel
+              </button>
+              <button type="submit" className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white">
+                Login
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
       {showForm && (

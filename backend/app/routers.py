@@ -1,9 +1,13 @@
 from datetime import date, timedelta
+import os
+import json
+from urllib import request as urlrequest
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import extract, func, or_
 from sqlalchemy.orm import Session
 
+from .auth import require_write
 from .database import get_db
 from .models import Application, ApplicationStatus
 from .schemas import (
@@ -148,7 +152,11 @@ def get_application(application_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ApplicationOut, status_code=201)
-def create_application(payload: ApplicationCreate, db: Session = Depends(get_db)):
+def create_application(
+    payload: ApplicationCreate,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_write),
+):
     app = Application(**payload.model_dump())
     db.add(app)
     db.commit()
@@ -158,7 +166,10 @@ def create_application(payload: ApplicationCreate, db: Session = Depends(get_db)
 
 @router.patch("/{application_id}", response_model=ApplicationOut)
 def update_application(
-    application_id: int, payload: ApplicationUpdate, db: Session = Depends(get_db)
+    application_id: int,
+    payload: ApplicationUpdate,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_write),
 ):
     app = db.get(Application, application_id)
     if not app:
@@ -171,9 +182,57 @@ def update_application(
 
 
 @router.delete("/{application_id}", status_code=204)
-def delete_application(application_id: int, db: Session = Depends(get_db)):
+def delete_application(
+    application_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_write),
+):
     app = db.get(Application, application_id)
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
     db.delete(app)
     db.commit()
+
+
+@router.post("/reminders/dispatch")
+def dispatch_reminders(
+    db: Session = Depends(get_db),
+    _: None = Depends(require_write),
+):
+    today = date.today()
+    due = (
+        db.query(Application)
+        .filter(
+            ~Application.status.in_(list(CLOSED_STATUSES)),
+            Application.follow_up_date.isnot(None),
+            Application.follow_up_date <= today + timedelta(days=7),
+        )
+        .order_by(Application.follow_up_date.asc())
+        .all()
+    )
+    payload = {
+        "generated_at": today.isoformat(),
+        "count": len(due),
+        "items": [
+            {
+                "company": a.company,
+                "position": a.position,
+                "follow_up_date": a.follow_up_date.isoformat() if a.follow_up_date else None,
+                "next_action": a.next_action,
+                "overdue": bool(a.follow_up_date and a.follow_up_date < today),
+            }
+            for a in due
+        ],
+    }
+    webhook = os.getenv("REMINDER_WEBHOOK_URL", "").strip()
+    delivered = False
+    if webhook:
+        req = urlrequest.Request(
+            webhook,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urlrequest.urlopen(req, timeout=10) as resp:
+            delivered = 200 <= resp.status < 300
+    return {"delivered": delivered, **payload}

@@ -11,3 +11,11 @@ services:
         value: "*"
       - key: PYTHON_VERSION
         value: "3.13.5"
+      - key: DEMO_PASSWORD
+        value: demo
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: REMINDER_WEBHOOK_URL
+        sync: false

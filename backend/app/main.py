@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .database import Base, SessionLocal, engine
 from .routers import router
+from .auth_router import router as auth_router
 from .seed import seed_if_empty
 
 Base.metadata.create_all(bind=engine)
@@ -37,6 +38,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(auth_router)
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 

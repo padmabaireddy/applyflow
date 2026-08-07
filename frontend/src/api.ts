@@ -52,11 +52,26 @@ export interface DashboardStats {
 }
 
 const BASE = '/api/applications'
+const TOKEN_KEY = 'applyflow_token'
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setToken(token: string | null) {
+  if (token) localStorage.setItem(TOKEN_KEY, token)
+  else localStorage.removeItem(TOKEN_KEY)
+}
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const token = getToken()
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers || {}),
+    },
   })
   if (!res.ok) {
     const text = await res.text()
@@ -64,6 +79,20 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as T
   return res.json()
+}
+
+export function login(password: string) {
+  return request<{ access_token: string }>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  }).then((data) => {
+    setToken(data.access_token)
+    return data
+  })
+}
+
+export function logout() {
+  setToken(null)
 }
 
 export function fetchApplications(params?: { q?: string; status?: string }) {
@@ -95,4 +124,11 @@ export function updateApplication(id: number, data: Partial<ApplicationInput>) {
 
 export function deleteApplication(id: number) {
   return request<void>(`${BASE}/${id}`, { method: 'DELETE' })
+}
+
+export function dispatchReminders() {
+  return request<{ count: number; delivered: boolean; items: unknown[] }>(
+    `${BASE}/reminders/dispatch`,
+    { method: 'POST' },
+  )
 }
