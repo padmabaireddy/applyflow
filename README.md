@@ -13,12 +13,11 @@ Demo / portfolio project — sample or fictional data only. Do not commit real a
 
 **Resume one-liner:** Built ApplyFlow, a React/TypeScript + FastAPI job tracker with Kanban pipeline, analytics, and auth-protected writes (live on Render).
 
-
 ## Screenshots
 
-![Kanban](docs/kanban-preview.png)
-
 ![Dashboard](docs/dashboard-preview.png)
+
+![Kanban](docs/kanban-preview.png)
 
 ![List](docs/list-preview.png)
 
