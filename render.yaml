@@ -1,11 +1,13 @@
 services:
   - type: web
     name: applyflow
-    runtime: docker
+    runtime: python
     plan: free
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    buildCommand: pip install -r backend/requirements.txt && cd frontend && npm ci && npm run build && mkdir -p ../backend/static && cp -r dist/* ../backend/static/
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
       - key: CORS_ORIGINS
         value: "*"
+      - key: PYTHON_VERSION
+        value: "3.13.5"

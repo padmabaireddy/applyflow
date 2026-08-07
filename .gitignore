@@ -3,6 +3,7 @@ node_modules/
 dist/
 backend/venv/
 backend/applyflow.db
+backend/static/
 *.db
 __pycache__/
 *.py[cod]

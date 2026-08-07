@@ -16,15 +16,9 @@ Demo / portfolio project — sample or fictional data only. Do not commit real a
 
 ## Live demo
 
-Deploy with the included `Dockerfile` / `render.yaml` (Render free web service). After deploy, put your URL here:
+No Docker. Deploy on [Render](https://render.com) with **Blueprint** → connect `padmabaireddy/applyflow` (uses `render.yaml`: Python web service builds the Vite app into `backend/static`).
 
-**Demo:** _pending deploy — connect this repo to [Render](https://render.com) with `render.yaml`, or:_
-
-```bash
-docker build -t applyflow .
-docker run -p 8000:8000 applyflow
-# open http://127.0.0.1:8000
-```
+**Demo:** _add your Render URL here after first deploy_
 
 ## Local run
 
@@ -43,3 +37,11 @@ npm run dev
 
 API: http://127.0.0.1:8000  
 App: http://127.0.0.1:5173
+
+## Production build (no Docker)
+
+```bash
+cd frontend && npm ci && npm run build
+mkdir -p ../backend/static && cp -r dist/* ../backend/static/
+cd ../backend && ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
