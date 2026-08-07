@@ -51,3 +51,6 @@ class DashboardStats(BaseModel):
     this_month: int
     interviews: int
     response_rate: float
+    by_status: dict[str, int]
+    follow_ups_due: int
+    follow_ups_overdue: int

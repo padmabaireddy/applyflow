@@ -1,15 +1,19 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import {
-  Application,
-  ApplicationInput,
-  ApplicationStatus,
-  DashboardStats,
   STATUSES,
   createApplication,
   deleteApplication,
   fetchApplications,
+  fetchFollowUps,
   fetchStats,
   updateApplication,
+} from './api'
+import type {
+  Application,
+  ApplicationInput,
+  ApplicationStatus,
+  DashboardStats,
 } from './api'
 
 type View = 'dashboard' | 'kanban' | 'list'
@@ -61,6 +65,7 @@ export default function App() {
   const [view, setView] = useState<View>('dashboard')
   const [apps, setApps] = useState<Application[]>([])
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [followUps, setFollowUps] = useState<Application[]>([])
   const [q, setQ] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [form, setForm] = useState<ApplicationInput>(emptyForm)
@@ -73,17 +78,19 @@ export default function App() {
     setLoading(true)
     setError('')
     try {
-      const [list, dash] = await Promise.all([
+      const [list, dash, ups] = await Promise.all([
         fetchApplications({
           q: q || undefined,
           status: statusFilter || undefined,
         }),
         fetchStats(),
+        fetchFollowUps(),
       ])
       setApps(list)
       setStats(dash)
+      setFollowUps(ups)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '加载失败')
+      setError(e instanceof Error ? e.message : 'Failed to load')
     } finally {
       setLoading(false)
     }
@@ -145,12 +152,12 @@ export default function App() {
       setEditingId(null)
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '保存失败')
+      setError(err instanceof Error ? err.message : 'Failed to save')
     }
   }
 
   async function onDelete(id: number) {
-    if (!confirm('确定删除？')) return
+    if (!confirm('Delete this application?')) return
     await deleteApplication(id)
     await load()
   }
@@ -232,6 +239,65 @@ export default function App() {
               </div>
             ))}
           </div>
+
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl bg-white/90 p-5 shadow-sm ring-1 ring-[var(--line)]">
+              <h2 className="mb-1 text-lg font-semibold">Follow-up Reminders</h2>
+              <p className="mb-4 text-sm text-[var(--muted)]">
+                Due soon: {stats.follow_ups_due} · Overdue: {stats.follow_ups_overdue}
+              </p>
+              <ul className="divide-y divide-[var(--line)]">
+                {followUps.map((app) => {
+                  const overdue = app.follow_up_date && app.follow_up_date < new Date().toISOString().slice(0, 10)
+                  return (
+                    <li
+                      key={app.id}
+                      className="flex cursor-pointer flex-wrap items-center justify-between gap-2 py-3"
+                      onClick={() => openEdit(app)}
+                    >
+                      <div>
+                        <p className="font-medium">{app.company}</p>
+                        <p className="text-sm text-[var(--muted)]">{app.next_action || app.position}</p>
+                      </div>
+                      <span className={`text-xs font-medium ${overdue ? 'text-[var(--danger)]' : 'text-[var(--accent)]'}`}>
+                        {app.follow_up_date}
+                        {overdue ? ' · overdue' : ''}
+                      </span>
+                    </li>
+                  )
+                })}
+                {!followUps.length && (
+                  <li className="py-6 text-sm text-[var(--muted)]">No follow-ups in the next 7 days</li>
+                )}
+              </ul>
+            </div>
+
+            <div className="rounded-2xl bg-white/90 p-5 shadow-sm ring-1 ring-[var(--line)]">
+              <h2 className="mb-4 text-lg font-semibold">Pipeline Analytics</h2>
+              <div className="space-y-3">
+                {STATUSES.map((status) => {
+                  const count = stats.by_status[status] || 0
+                  const max = Math.max(...Object.values(stats.by_status), 1)
+                  const pct = Math.round((count / max) * 100)
+                  return (
+                    <div key={status}>
+                      <div className="mb-1 flex justify-between text-xs">
+                        <span>{status}</span>
+                        <span className="text-[var(--muted)]">{count}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-[var(--accent)]"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
           <div className="mt-6 rounded-2xl bg-white/90 p-5 shadow-sm ring-1 ring-[var(--line)]">
             <h2 className="mb-4 text-lg font-semibold">Recent Applications</h2>
             <ul className="divide-y divide-[var(--line)]">
@@ -246,7 +312,7 @@ export default function App() {
                   </span>
                 </li>
               ))}
-              {!recent.length && <li className="py-6 text-sm text-[var(--muted)]">暂无申请</li>}
+              {!recent.length && <li className="py-6 text-sm text-[var(--muted)]">No applications yet</li>}
             </ul>
           </div>
         </section>
@@ -331,7 +397,7 @@ export default function App() {
             </tbody>
           </table>
           {!apps.length && !loading && (
-            <p className="px-4 py-8 text-center text-sm text-[var(--muted)]">暂无申请，点击 Add 开始</p>
+            <p className="px-4 py-8 text-center text-sm text-[var(--muted)]">No applications yet — click Add to start</p>
           )}
         </section>
       )}

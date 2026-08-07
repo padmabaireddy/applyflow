@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import extract, func, or_
@@ -22,6 +22,8 @@ INTERVIEW_STATUSES = {
     ApplicationStatus.rejected,
     ApplicationStatus.assessment,
 }
+
+CLOSED_STATUSES = {ApplicationStatus.offer, ApplicationStatus.rejected}
 
 
 @router.get("", response_model=list[ApplicationOut])
@@ -63,10 +65,7 @@ def get_stats(db: Session = Depends(get_db)):
         db.query(func.count(Application.id))
         .filter(
             Application.status.in_(
-                [
-                    ApplicationStatus.interview,
-                    ApplicationStatus.final_interview,
-                ]
+                [ApplicationStatus.interview, ApplicationStatus.final_interview]
             )
         )
         .scalar()
@@ -85,11 +84,58 @@ def get_stats(db: Session = Depends(get_db)):
         or 0
     )
     response_rate = round((responded / applied_plus) * 100, 1) if applied_plus else 0.0
+
+    by_status = {s.value: 0 for s in ApplicationStatus}
+    for status, count in (
+        db.query(Application.status, func.count(Application.id))
+        .group_by(Application.status)
+        .all()
+    ):
+        by_status[status.value if hasattr(status, "value") else status] = count
+
+    follow_ups_due = (
+        db.query(Application)
+        .filter(
+            ~Application.status.in_(list(CLOSED_STATUSES)),
+            Application.follow_up_date.isnot(None),
+            Application.follow_up_date >= today,
+            Application.follow_up_date <= today + timedelta(days=7),
+        )
+        .count()
+    )
+    follow_ups_overdue = (
+        db.query(Application)
+        .filter(
+            ~Application.status.in_(list(CLOSED_STATUSES)),
+            Application.follow_up_date.isnot(None),
+            Application.follow_up_date < today,
+        )
+        .count()
+    )
+
     return DashboardStats(
         total_applications=total,
         this_month=this_month,
         interviews=interviews,
         response_rate=response_rate,
+        by_status=by_status,
+        follow_ups_due=follow_ups_due,
+        follow_ups_overdue=follow_ups_overdue,
+    )
+
+
+@router.get("/follow-ups", response_model=list[ApplicationOut])
+def list_follow_ups(db: Session = Depends(get_db)):
+    today = date.today()
+    return (
+        db.query(Application)
+        .filter(
+            ~Application.status.in_(list(CLOSED_STATUSES)),
+            Application.follow_up_date.isnot(None),
+            Application.follow_up_date <= today + timedelta(days=7),
+        )
+        .order_by(Application.follow_up_date.asc())
+        .all()
     )
 
 

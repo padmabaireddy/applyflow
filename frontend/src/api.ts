@@ -46,6 +46,9 @@ export interface DashboardStats {
   this_month: number
   interviews: number
   response_rate: number
+  by_status: Record<string, number>
+  follow_ups_due: number
+  follow_ups_overdue: number
 }
 
 const BASE = '/api/applications'
@@ -73,6 +76,10 @@ export function fetchApplications(params?: { q?: string; status?: string }) {
 
 export function fetchStats() {
   return request<DashboardStats>(`${BASE}/stats`)
+}
+
+export function fetchFollowUps() {
+  return request<Application[]>(`${BASE}/follow-ups`)
 }
 
 export function createApplication(data: ApplicationInput) {
