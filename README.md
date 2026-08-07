@@ -18,7 +18,7 @@ Demo / portfolio project — sample or fictional data only. Do not commit real a
 
 No Docker. Deploy on [Render](https://render.com) with **Blueprint** → connect `padmabaireddy/applyflow` (uses `render.yaml`: Python web service builds the Vite app into `backend/static`).
 
-**Demo:** _add your Render URL here after first deploy_
+**Demo:** https://applyflow-m6ak.onrender.com
 
 ## Local run
 
