@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #0f1c2e;
+  --muted: #5a6b7d;
+  --panel: #ffffff;
+  --line: #d7e0ea;
+  --accent: #1f6f5b;
+  --accent-soft: #e6f3ef;
+  --bg0: #eef3f7;
+  --bg1: #d9e6f0;
+  --danger: #b42318;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #c9dcec 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #c7e2d8 0%, transparent 50%),
+    linear-gradient(180deg, var(--bg0), var(--bg1));
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+  letter-spacing: -0.02em;
+}

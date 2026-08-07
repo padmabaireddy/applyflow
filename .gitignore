@@ -1,0 +1,13 @@
+.DS_Store
+node_modules/
+dist/
+backend/venv/
+backend/applyflow.db
+*.db
+__pycache__/
+*.py[cod]
+.env
+.env.*
+*.egg-info/
+.Python
+.vite/
