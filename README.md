@@ -2,6 +2,8 @@
 
 Full-stack job application tracker built with React, TypeScript, FastAPI, and PostgreSQL.
 
+Demo / portfolio project — sample or fictional data only. Do not commit real application records, notes, recruiter contacts, or salary details. Local SQLite DBs (`.db`) and secrets (`.env`) are gitignored; never force-add them.
+
 ## Run
 
 ```bash
